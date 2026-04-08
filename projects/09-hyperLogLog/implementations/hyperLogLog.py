@@ -1,11 +1,6 @@
-# Assume test case format where first number is the number of test cases, and in each test case there is the
-# precision and number of stream elements, and then the stream elements themselves.
-# Output for each test case is the estimate of the distinct elements in the stream according to HyperLogLog
-
-import hashlib
 import math
 import sys
-
+import mmh3
 
 class HyperLogLog:
     def __init__(self, p):
@@ -14,7 +9,7 @@ class HyperLogLog:
         self.reg = [0] * self.num_registers
 
     def add_element(self, value):
-        hash = int.from_bytes(hashlib.sha1(str(value).encode()).digest()[:8], "big")
+        hash = mmh3.hash64(str(value), seed=0xADC83B19, signed=False)[0]
         register_index = hash >> (64 - self.p)
         remaining_bits = 64 - self.p
         w = hash & ((1 << remaining_bits) - 1)
@@ -55,21 +50,12 @@ if __name__ == "__main__":
     else:
         t = sys.stdin.read().split()
 
-    i = 0
-    tc = int(t[i])
-    i += 1
+    precision = 14
+    if len(sys.argv) > 2:
+        precision = int(sys.argv[2])
 
-    out = []
-    for _ in range(tc):
-        p = int(t[i])
-        n = int(t[i + 1])
-        i += 2
+    h = HyperLogLog(precision)
+    for tok in t:
+        h.add_element(tok)
 
-        h = HyperLogLog(p)
-        for _ in range(n):
-            h.add_element(t[i])
-            i += 1
-
-        out.append(str(int(round(h.estimate_cardinality()))))
-
-    sys.stdout.write("\n".join(out))
+    sys.stdout.write(str(int(round(h.estimate_cardinality()))))
